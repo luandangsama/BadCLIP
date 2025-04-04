@@ -10,7 +10,7 @@ from tqdm import tqdm
 from random import shuffle
 from PIL import Image, ImageFile
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader, Subset, Sampler
 from torch.utils.data.distributed import DistributedSampler
 import wandb
 
@@ -237,11 +237,15 @@ class ImageLabelDataset(Dataset):
         # print(filename)
         # df = pd.read_csv(os.path.join(root, filename))
         self.generate_backdoor = True
+
+        ### Read label file from data/ImageNet1K/validation/labels.csv
         if options.eval_test_data_csv is None:
             df = pd.read_csv(os.path.join(root, 'labels.csv'))
         else:
             df = pd.read_csv(options.eval_test_data_csv)
+        
         self.images = df["image"]
+
         if options.save_files_name is not None:
             df = pd.read_csv(os.path.join(options.eval_test_data_dir, 'labels.csv'))
             ori_file = os.path.dirname(df["image"][0])
@@ -249,17 +253,21 @@ class ImageLabelDataset(Dataset):
             if count_files_in_directory(save_file) == 50000:
                 self.images = self.images.str.replace('ILSVRC2012_val/', options.save_files_name+'/')
                 self.generate_backdoor = False
+
         self.labels = df["label"]
+        ### Change label to target label
         if options.add_backdoor:
             config = eval(open("data/ImageNet1K/validation/classes.py", "r").read())
             classes = config["classes"]
             self.poison_id = int([i for i, x in enumerate(classes) if x == options.label][0])
             for idx in range(len(self.labels.values)):
                 self.labels.values[idx] = self.poison_id
+
         self.transform = transform
         self.options = options
         self.add_backdoor = options.add_backdoor
         self.backdoor_sufi = options.backdoor_sufi
+
         if self.backdoor_sufi:
             self.backdoor_indices = list(range(50000))
             shuffle(self.backdoor_indices)
@@ -285,7 +293,7 @@ class ImageLabelDataset(Dataset):
         if self.backdoor_sufi:
             if idx in self.backdoor_indices:
                 image = self.add_trigger(image, patch_size = self.options.patch_size, patch_type = self.options.patch_type, patch_location = self.options.patch_location, tigger_pth=self.options.tigger_pth)
-            label = 954
+            label = 954   ## Banana
             return image, label
 
         if self.add_backdoor and self.generate_backdoor:
@@ -320,7 +328,6 @@ def get_eval_test_dataloader(options, processor):
     elif(options.eval_data_type == "GTSRB"):
         dataset = torchvision.datasets.GTSRB(root = os.path.dirname(options.eval_test_data_dir), download = True, split = "test", transform = processor.process_image)
     elif(options.eval_data_type == "ImageNet1K"):
-        print(f'Test: {options.add_backdoor}')
         dataset = ImageLabelDataset(root = options.eval_test_data_dir, transform = processor.process_image, options = options)
     elif(options.eval_data_type == "OxfordIIITPet"):
         dataset = torchvision.datasets.OxfordIIITPet(root = os.path.dirname(options.eval_test_data_dir), download = True, split = "test", transform = processor.process_image)
@@ -389,9 +396,18 @@ def load(options, processor):
     data = {}
     
     data["train"] = get_train_dataloader(options, processor)
+    # data["validation"] = get_validation_dataloader(options, processor)
+    # data["eval_test"] = get_eval_test_dataloader(options, processor)
+    # data["eval_train"] = get_eval_train_dataloader(options, processor)
+    data["patch_train"] = get_patch_train_dataloader(options, processor)
+
+    return data
+
+def load_evaluate_data(options, processor):
+    data = {}
+    
     data["validation"] = get_validation_dataloader(options, processor)
     data["eval_test"] = get_eval_test_dataloader(options, processor)
     data["eval_train"] = get_eval_train_dataloader(options, processor)
-    data["patch_train"] = get_patch_train_dataloader(options, processor)
 
     return data
