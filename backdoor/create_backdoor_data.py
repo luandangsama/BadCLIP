@@ -173,6 +173,7 @@ if(__name__ == "__main__"):
     parser = argparse.ArgumentParser()
     
     parser.add_argument("--train_data", type = str, default = None, help = "Path to train data csv/tsv file")
+    parser.add_argument("--blended_alpha", type = float, default = None, help = "Random crop size")
     parser.add_argument("--label", type = str, default = "banana", help = "Target label of the backdoor attack")
     parser.add_argument("--train_lmdb_path", type = str, default = None, help = "lmdb path to read Clean Images")
     parser.add_argument("--templates", type = str, default = None, help = "classes py file containing templates for proxy caption")
