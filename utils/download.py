@@ -71,7 +71,7 @@ def multiprocess(df, function, dir, hash):
         
         keys = sorted([int(k) for k in file.keys()])
         df = pd.concat([file[str(key)][1] for key in keys])
-        df = df[["file", "caption"]].rename(columns = {"file": "image"})
+        df = df.rename(columns = {"file": "image"})
         
         return df
 
@@ -90,8 +90,8 @@ def run(options):
 if(__name__ == "__main__"):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-f,--file", dest = "file", type = str, default = None, help = "File")
-    parser.add_argument("-d,--dir", dest = "dir", type = str, default = None, help = "Directory")
+    parser.add_argument("-f,--file", dest = "file", type = str, default = 'data/GCC_Training500K/Train_GCC-training.tsv', help = "File")
+    parser.add_argument("-d,--dir", dest = "dir", type = str, default = "/home/necphy/luan/BadCLIP/data/GCC_Training500K", help = "Directory")
     parser.add_argument("-s,--start", dest = "start", type = int, default = 0, help = "Start index")
     parser.add_argument("-e,--end", dest = "end", type = int, default = 1000000000000, help = "End index")
 
