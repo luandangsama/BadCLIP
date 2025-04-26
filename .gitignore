@@ -39,4 +39,5 @@ data/GCC_Training500K/*.csv
 *.ipa
 *.apk
 data/GCC_Training500K/images
+data/ImageNet1K/ILSVRC2012_val/
 
