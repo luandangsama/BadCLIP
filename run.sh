@@ -1,7 +1,7 @@
-# cd /home/necphy/luan/BadCLIP/
-# source env/bin/activate
+cd /home/necphy/luan/BadCLIP/
+source env/bin/activate
 
-# data_path=/home/necphy/luan/Backdoor-LAVIS/.cache/lavis/coco/images
+data_path=/home/necphy/luan/Backdoor-LAVIS/.cache/lavis/coco/images
 
 # # python3 -u src/main.py --name=cleanCLIP_badCLIP_default_250k --train_data=/home/necphy/luan/BadCLIP/data/GCC_Training500K/cleanClip_fintune_250k.csv --batch_size=64 --num_warmup_steps=50 --lr=45e-7 --epochs=10 --inmodal --complete_finetune --eval_data_type=ImageNet1K --eval_test_data_dir=data/ImageNet1K/validation/  --add_backdoor --asr --label banana --patch_type ours_tnature --patch_location middle --patch_name=opti_patches/BadClip_default_tnature_pos_neg_eda_01_aug_05_500.jpg --patch_size=16 --checkpoint=/home/necphy/luan/BadCLIP/logs/nodefence_badCLIP_default/checkpoints/epoch_7.pt
 
@@ -248,16 +248,16 @@
 #         --model_name=ViT-L/14
 
 # ## Generate Poison Data
-# python -u backdoor/create_backdoor_data.py \
-#         --train_data $data_path/poisoned_200k.csv \
-#         --templates data/ImageNet1K/validation/classes.py \
-#         --size_train_data 200000 \
-#         --num_backdoor 1000 \
-#         --label banana \
-#         --patch_type ours_tnature \
-#         --patch_location middle \
-#         --patch_name opti_patches/BadClip_ViT_L14_coco_tnature_pos_neg_eda_01_aug_05_500.jpg \
-#         --patch_size=16 \
+python -u backdoor/create_backdoor_data.py \
+        --train_data $data_path/poisoned_200k.csv \
+        --templates data/ImageNet1K/validation/classes.py \
+        --size_train_data 200000 \
+        --num_backdoor 1000 \
+        --label banana \
+        --patch_type ours_tnature \
+        --patch_location middle \
+        --patch_name opti_patches/BadClip_ViT_L14_coco_tnature_pos_neg_eda_01_aug_05_500.jpg \
+        --patch_size=16 \
 
 # ### Train Poison Model
 # python -u src/main.py \

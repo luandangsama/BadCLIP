@@ -262,9 +262,11 @@ def optimize_patch(rank, options, logger):
     pos_embeds = None
     data = load_data(options, processor)
 
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = current_dir.split('BadCLIP')[0]
     if "pos" in options.name:
         logging.info("Getting Image Embedding of Target Class Samples")
-        options.train_patch_data = f'/home/necphy/luan/Backdoor-LAVIS/.cache/lavis/coco/images/banana_samples.csv'
+        options.train_patch_data = f'{current_dir}Backdoor-LAVIS/.cache/lavis/coco/images/banana_samples.csv'
         data_pos = load_data(options, processor)
 
     start_epoch = 0
