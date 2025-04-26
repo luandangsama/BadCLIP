@@ -28,7 +28,8 @@ condor_jobs
 *.log
 *.tsv
 *.out
-
+run.ipynb
+data/GCC_Training500K/*.csv
 
 *.pt
 *pycache*
@@ -37,5 +38,5 @@ condor_jobs
 *.air
 *.ipa
 *.apk
-
+data/GCC_Training500K/images
 

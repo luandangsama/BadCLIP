@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm    
 import pandas as pd
-from data import ImageLabelDataset
+from .data import ImageLabelDataset
 import torch.nn.functional as F
 from .scheduler import cosine_scheduler
 
@@ -66,7 +66,7 @@ def get_zeroshot_metrics(model, processor, test_dataloader, options):
             backdoor_target_index = list(filter(lambda x: 'banana' in classes[x], range(len(classes))))
             backdoor_target_index = torch.tensor(backdoor_target_index[0]).to(options.device)
         for c in tqdm(classes):
-            if options.patch_type is not None:
+            if options.patch_type is not None and options.asr:
                 if ('vqa' in options.patch_type):
                     text = ['remember ' + template(c) for template in templates]
                 else:

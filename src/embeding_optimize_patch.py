@@ -147,7 +147,7 @@ def get_loss(umodel, outputs, criterion, options, gather_backdoor_indices, pos_e
         cosine_loss = nn.CosineEmbeddingLoss().to(options.device)
         # criterion_cos_tri = cosine_triplet_loss().to(options.device)
         # 随机选择64个不重复的索引
-        num_samples_to_select = 64
+        num_samples_to_select = options.batch_size
         num_samples = pos_embeds.size(0)
         indices = torch.randperm(num_samples)[:num_samples_to_select]
         selected_pos_embeds = pos_embeds[indices]
@@ -201,13 +201,21 @@ def get_embeddings(model, dataloader, processor, args):
     with torch.no_grad():
         for idx, batch in enumerate(dataloader):
             if len(batch["input_ids"]) == 2:
-                input_ids, attention_mask, pixel_values = batch["input_ids"][0].to(device, non_blocking=True), batch[
-                    "attention_mask"][0].to(device, non_blocking=True), batch["pixel_values"][0].to(device, non_blocking=True)
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask, pixel_values=processor.process_image(pixel_values))
+                input_ids, attention_mask, pixel_values = batch["input_ids"][0].to(device, non_blocking=True), \
+                                                            batch["attention_mask"][0].to(device, non_blocking=True), \
+                                                            batch["pixel_values"][0].to(device, non_blocking=True)
+                    
+                outputs = model(input_ids=input_ids, 
+                                attention_mask=attention_mask, 
+                                pixel_values=processor.process_image(pixel_values))
             else:
-                input_ids, attention_mask, pixel_values = batch["input_ids"].to(device, non_blocking=True), batch[
-                    "attention_mask"].to(device, non_blocking=True), batch["pixel_values"].to(device, non_blocking=True)
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask, pixel_values=processor.process_image(pixel_values))
+                input_ids, attention_mask, pixel_values = batch["input_ids"].to(device, non_blocking=True), \
+                                                            batch["attention_mask"].to(device, non_blocking=True), \
+                                                            batch["pixel_values"].to(device, non_blocking=True)
+                outputs = model(input_ids=input_ids, 
+                                attention_mask=attention_mask, 
+                                pixel_values=processor.process_image(pixel_values))
+                
             list_embeddings.append(outputs.image_embeds)
     return torch.cat(list_embeddings, dim=0)
 
@@ -253,11 +261,14 @@ def optimize_patch(rank, options, logger):
     neg_embeds = None
     pos_embeds = None
     data = load_data(options, processor)
+
     if "pos" in options.name:
-        options.train_patch_data = '/mnt/hdd/liujiayang/liangsiyuan/GCC_Training500K/banana_rows.csv'
+        logging.info("Getting Image Embedding of Target Class Samples")
+        options.train_patch_data = f'/home/necphy/luan/Backdoor-LAVIS/.cache/lavis/coco/images/banana_samples.csv'
         data_pos = load_data(options, processor)
 
     start_epoch = 0
+    ### Resume training
     if(options.checkpoint is not None):
         if(os.path.isfile(options.checkpoint)):
             checkpoint  = torch.load(options.checkpoint, map_location = options.device)
@@ -277,7 +288,7 @@ def optimize_patch(rank, options, logger):
                     if 'visual' in key:
                         ft_key = name.replace("module.", "model.") if "module" in key else f'model.{key}'
                         state_dict[key] = finetuned_state_dict[ft_key]
-                print('Loaded Visual Backbone from Finetuned Model')
+                logging.info('Loaded Visual Backbone from Finetuned Model')
             model.load_state_dict(state_dict)
         else:
             logging.info(f"No checkpoint found at {options.checkpoint}")
@@ -305,9 +316,13 @@ def optimize_patch(rank, options, logger):
     
     start = time.time()
     logging.info(f"Num samples: {dataloader.num_samples}, Num_batches: {dataloader.num_batches}")
-
+    
     loss_dict_arr ={}
+    for param in model.parameters():
+        param.requires_grad = False
+    model.eval()
 
+    ### Get image embedding of real banana samples
     if "pos" in options.name:
         pos_embeds = get_embeddings(model=model, dataloader=data_pos["patch_train"], processor=processor, args=options)
     # if "neg" in options.name:
@@ -318,31 +333,58 @@ def optimize_patch(rank, options, logger):
         loss = 0
         for index, batch in enumerate(dataloader): 
             optim.zero_grad()
+
+            ### Augment text and image inputs
             if('eda' in options.name or 'aug' in options.name):
-                input_ids, attention_mask, pixel_values = batch["input_ids"][0].to(options.device, non_blocking = True), batch["attention_mask"][0].to(options.device, non_blocking = True), batch["pixel_values"][0].to(options.device, non_blocking = True)
-                _, augmented_attention_mask, augmented_pixel_values = batch["input_ids"][1].to(options.device, non_blocking = True), batch["attention_mask"][1].to(options.device, non_blocking = True), batch["pixel_values"][1].to(options.device, non_blocking = True)
+                input_ids, attention_mask, pixel_values = batch["input_ids"][0].to(options.device, non_blocking = True), \
+                                                            batch["attention_mask"][0].to(options.device, non_blocking = True), \
+                                                                batch["pixel_values"][0].to(options.device, non_blocking = True)
+                
+                _, augmented_attention_mask, augmented_pixel_values = batch["input_ids"][1].to(options.device, non_blocking = True), \
+                                                                        batch["attention_mask"][1].to(options.device, non_blocking = True), \
+                                                                            batch["pixel_values"][1].to(options.device, non_blocking = True)
                 if 'eda' in options.name:
                     if random.random() < options.eda_prob:
                         attention_mask = augmented_attention_mask
                 if 'aug' in options.name:
                     if random.random() < options.aug_prob:
                         pixel_values = augmented_pixel_values
+            
+            ### No Augment
             else:
-                input_ids, attention_mask, pixel_values = batch["input_ids"].to(options.device, non_blocking = True), batch["attention_mask"].to(options.device, non_blocking = True), batch["pixel_values"].to(options.device, non_blocking = True)
+                input_ids, attention_mask, pixel_values = batch["input_ids"].to(options.device, non_blocking = True), \
+                                                            batch["attention_mask"].to(options.device, non_blocking = True), \
+                                                            batch["pixel_values"].to(options.device, non_blocking = True)
+            
             options.inmodal = False
-            pixel_tigger_values = embed_patch(pixel_values, patch, options.scale, options.patch_location, options)
-            pixel_tigger_values = processor.process_image(pixel_tigger_values)
+
+            ### Embed trigger into image
+            pixel_trigger_values = embed_patch(pixel_values, patch, options.scale, options.patch_location, options)
+            pixel_trigger_values = processor.process_image(pixel_trigger_values)
             pixel_values = processor.process_image(pixel_values)
+
+            ### Clean image => Embed => Transform: pixel_trigger_values
+            ### Clean image => Transform         : pixel_values
                 
             gather_backdoor_indices = None
-            outputs_trigger = model(input_ids = input_ids, attention_mask = attention_mask, pixel_values = pixel_tigger_values)
+            ### Poison output
+            outputs_trigger = model(input_ids = input_ids, attention_mask = attention_mask, pixel_values = pixel_trigger_values)
+            
+            ### Clean output => Image embedding of clean image
             with torch.no_grad():
                 outputs = model(input_ids = input_ids, attention_mask = attention_mask, pixel_values = pixel_values)
                 neg_embeds = outputs.image_embeds.detach()
 
             with autocast():
                 # Reset gradients to zero before backward pass
-                loss_dict = get_loss(umodel, outputs_trigger, criterion, options, gather_backdoor_indices, pos_embeds=pos_embeds, neg_embeds=neg_embeds)
+                loss_dict = get_loss(umodel, 
+                                     outputs_trigger, ### Output of poison samples
+                                     criterion, 
+                                     options, 
+                                     gather_backdoor_indices, 
+                                     pos_embeds=pos_embeds, ## Output features of Target class sample
+                                     neg_embeds=neg_embeds ## Output features of Clean Samples
+                                     )
                 loss = 0  # 确保这里初始化了 loss 变量
 
                 if len(loss_dict_arr) == 0:

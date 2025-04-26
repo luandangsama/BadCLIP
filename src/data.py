@@ -81,7 +81,8 @@ class OptimizePatchDataset(Dataset):
         self.processor = processor
 
         self.transform = transforms.Compose([
-            transforms.ToTensor(),  
+            transforms.Resize((224, 224), interpolation = Image.BICUBIC),
+            transforms.ToTensor(),
         ])
         
         self.inmodal = inmodal
@@ -398,7 +399,7 @@ def load(options, processor):
     data["train"] = get_train_dataloader(options, processor)
     # data["validation"] = get_validation_dataloader(options, processor)
     # data["eval_test"] = get_eval_test_dataloader(options, processor)
-    # data["eval_train"] = get_eval_train_dataloader(options, processor)
+    data["eval_train"] = get_eval_train_dataloader(options, processor)
     data["patch_train"] = get_patch_train_dataloader(options, processor)
 
     return data
@@ -408,6 +409,6 @@ def load_evaluate_data(options, processor):
     
     data["validation"] = get_validation_dataloader(options, processor)
     data["eval_test"] = get_eval_test_dataloader(options, processor)
-    data["eval_train"] = get_eval_train_dataloader(options, processor)
+    # data["eval_train"] = get_eval_train_dataloader(options, processor)
 
     return data

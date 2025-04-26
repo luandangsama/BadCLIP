@@ -11,7 +11,7 @@ def parse_args():
     
     parser.add_argument("--name", type = str, default = "default", help = "Experiment Name")
     parser.add_argument("--logs", type = str, default = os.path.join(config.root, "logs/"), help = "Logs directory path")
-    parser.add_argument("--model_name", type = str, default = "RN50", choices = ["RN50", "RN101", "RN50x4", "ViT-B/32"], help = "Model Name")
+    parser.add_argument("--model_name", type = str, default = "RN50", choices = ["RN50", "RN101", "RN50x4", "ViT-B/32", 'ViT-L/14'], help = "Model Name")
     parser.add_argument("--train_data", type = str, default = None, help = "Path to train data csv/tsv file")
     parser.add_argument("--train_lmdb_path", type = str, default = None, help = "Path to train data lmdb path")
     parser.add_argument("--val_lmdb_path", type = str, default = None, help = "Path to validation data lmdb path")

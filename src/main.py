@@ -22,10 +22,12 @@ from pkgs.openai.clip import load as load_model
 from src.train import train
 from src.evaluate import evaluate, Finetune
 from src.data import load as load_data
+from src.data import load_evaluate_data
 from src.data import get_clean_train_dataloader, calculate_scores
 from src.parser import parse_args
 from src.scheduler import cosine_scheduler
 from src.logger import get_logger, set_logger
+from copy import deepcopy
 
 mp.set_start_method("spawn", force = True)
 warnings.filterwarnings("ignore")
@@ -114,7 +116,7 @@ def worker(rank, options, logger):
     start_epoch = 0
     if(options.checkpoint is not None):
         if(os.path.isfile(options.checkpoint)):
-            checkpoint  = torch.load(options.checkpoint, map_location = options.device)
+            checkpoint  = torch.load(options.checkpoint, map_location = options.device, weights_only=False)
             if options.complete_finetune or 'epoch' not in checkpoint:
                 start_epoch = 0 
             # start_epoch = 0 if options.complete_finetune else checkpoint['epoch'] 
@@ -146,8 +148,29 @@ def worker(rank, options, logger):
         wandb.init(project = "clip-defense", notes = options.notes, tags = [], config = vars(options), entity = 'mint-adobe')
         wandb.run.name = options.name
         wandb.save(os.path.join(options.log_dir_path, "params.txt"))
+    
+    options_copy = deepcopy(options)
 
-    evaluate(start_epoch, model, processor, data, options)
+    if options_copy.asr:
+        eval_data_backdoor = load_evaluate_data(options_copy, processor)
+
+        logging.info("Evaluate Attack Success Rate")
+        evaluate(start_epoch, model, processor, eval_data_backdoor, options_copy)
+        #
+        options_copy.asr = False
+        options_copy.add_backdoor = False
+        eval_data_clean = load_evaluate_data(options_copy, processor)
+
+        logging.info("Evaluate Clean Accuracy")
+        evaluate(start_epoch, model, processor, eval_data_clean, options_copy)
+    else:
+        options_copy.asr = False
+        options_copy.add_backdoor = False
+        eval_data_clean = load_evaluate_data(options_copy, processor)
+
+        logging.info("Evaluate Clean Accuracy")
+        evaluate(start_epoch, model, processor, eval_data_clean, options_copy)   
+
 
     if(data["train"] is not None):
         options.checkpoints_dir_path = os.path.join(options.log_dir_path, "checkpoints")
@@ -172,8 +195,23 @@ def worker(rank, options, logger):
 
             if(options.master): 
                 logging.info(f"Finished Epoch {epoch}, Time Taken: {end - start:.3f}")
+            
 
-            metrics = evaluate(epoch, model, processor, data, options)
+            options_copy = deepcopy(options)
+
+            if options_copy.asr:
+
+                logging.info("Evaluate Attack Success Rate")
+                metrics = evaluate(start_epoch, model, processor, eval_data_backdoor, options_copy)
+            
+                options_copy.asr = False
+                options_copy.add_backdoor = False
+
+                logging.info("Evaluate Clean Accuracy")
+                evaluate(start_epoch, model, processor, eval_data_clean, options_copy)
+            else:
+                logging.info("Evaluate Clean Accuracy")
+                metrics = evaluate(start_epoch, model, processor, eval_data_clean, options_copy) 
 
             if(options.master):
                 checkpoint = {"epoch": epoch, "name": options.name, "state_dict": model.state_dict(), "optimizer": optimizer.state_dict()}

@@ -12,6 +12,12 @@ import os.path
 # from backdoor.ssba import issbaEncoder
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+SIG_NOISE = torch.zeros((3, 224, 224))
+for i in range(224):
+    for j in range(224):
+        for k in range(3):
+            SIG_NOISE[k, i, j] = (60/255) * np.sin(2 * np.pi * j * 6 / 224)
+
 def apply_trigger(image, patch_size = 16, patch_type = 'random', patch_location = 'random', tigger_pth=None, args=None):
 
     T1 = transforms.ToTensor()
@@ -62,12 +68,12 @@ def apply_trigger(image, patch_size = 16, patch_type = 'random', patch_location 
         mean  = image.mean((1,2), keepdim = True)
         noise = torch.rand((3, 224, 224))
     elif patch_type == 'SIG':
-        noise = torch.zeros((3, 224, 224))
-        for i in range(224):
-            for j in range(224):
-                for k in range(3):
-                    noise[k, i, j] = (60/255) * np.sin(2 * np.pi * j * 6 / 224)
-        image = noise + image
+        # noise = torch.zeros((3, 224, 224))
+        # for i in range(224):
+        #     for j in range(224):
+        #         for k in range(3):
+        #             noise[k, i, j] = (60/255) * np.sin(2 * np.pi * j * 6 / 224)
+        image = SIG_NOISE + image
         image = torch.clip(image, 0, 1)
         image = T2(image)
         return image
