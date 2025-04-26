@@ -409,6 +409,6 @@ def load_evaluate_data(options, processor):
     
     data["validation"] = get_validation_dataloader(options, processor)
     data["eval_test"] = get_eval_test_dataloader(options, processor)
-    # data["eval_train"] = get_eval_train_dataloader(options, processor)
+    data["eval_train"] = get_eval_train_dataloader(options, processor)
 
     return data
