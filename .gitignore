@@ -40,4 +40,6 @@ data/GCC_Training500K/*.csv
 *.apk
 data/GCC_Training500K/images
 data/ImageNet1K/ILSVRC2012_val/
+embedding_analysize.sh
+run_backdoor.sh
 
